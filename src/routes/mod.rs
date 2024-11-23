@@ -1,10 +1,11 @@
 use crate::controllers::user_controller;
-use axum::{routing::get, routing::post, Router};
+use axum::{routing::post, Router};
 use mongodb::Database;
 
 pub fn create_routes(db: Database) -> Router {
     Router::new()
-        .route("/users", get(user_controller::get_users))
-        .route("/users", post(user_controller::add_user))
+        .route("/signup", post(user_controller::sign_up))
+        .route("/login", post(user_controller::login))
+        .route("/forgot-password", post(user_controller::forgot_password))
         .with_state(db)
 }

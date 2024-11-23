@@ -1,27 +1,48 @@
-use axum::{extract::State, Json};
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+    Json,
+};
 use mongodb::Database;
 use serde::Deserialize;
 
-use crate::models::user::User;
 use crate::services::user_service;
 
 #[derive(Deserialize)]
-pub struct AddUserRequest {
-    pub name: String,
+pub struct AuthRequest {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Deserialize)]
+pub struct ForgotPasswordRequest {
     pub email: String,
 }
 
-pub async fn get_users(State(db): State<Database>) -> Json<Vec<User>> {
-    let users = user_service::get_all_users(&db).await.unwrap();
-    Json(users)
+fn error_response(message: &str) -> Response {
+    (axum::http::StatusCode::BAD_REQUEST, message.to_string()).into_response()
 }
 
-pub async fn add_user(
+pub async fn sign_up(State(db): State<Database>, Json(payload): Json<AuthRequest>) -> Response {
+    match user_service::sign_up(&db, payload.email, payload.password).await {
+        Ok(_) => (axum::http::StatusCode::OK, "User registered successfully").into_response(),
+        Err(err) => error_response(&err),
+    }
+}
+
+pub async fn login(State(db): State<Database>, Json(payload): Json<AuthRequest>) -> Response {
+    match user_service::login(&db, payload.email, payload.password).await {
+        Ok(token) => Json(token).into_response(),
+        Err(err) => error_response(&err),
+    }
+}
+
+pub async fn forgot_password(
     State(db): State<Database>,
-    Json(payload): Json<AddUserRequest>,
-) -> &'static str {
-    user_service::add_user(&db, payload.name, payload.email)
-        .await
-        .unwrap();
-    "User added successfully"
+    Json(payload): Json<ForgotPasswordRequest>,
+) -> Response {
+    match user_service::forgot_password(&db, payload.email).await {
+        Ok(_) => (axum::http::StatusCode::OK, "Password reset code sent").into_response(),
+        Err(err) => error_response(&err),
+    }
 }
